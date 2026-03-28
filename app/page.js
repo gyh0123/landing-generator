@@ -109,7 +109,7 @@ export default function Home() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ crawlData: crawlJson.data, customPrompt })
-      }, 65000)
+      }, 300000)
       if (!planRes.ok) {
         const errData = await planRes.json().catch(() => ({}))
         handleError(errData.error || 'AI 기획 실패 (HTTP ' + planRes.status + ')'); return
@@ -135,7 +135,7 @@ export default function Home() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ plan: planJson.plan, crawlData: crawlJson.data, customRequest })
-      }, 65000)
+      }, 300000)
       if (!genRes.ok) {
         const errData = await genRes.json().catch(() => ({}))
         handleError(errData.error || 'HTML 생성 실패 (HTTP ' + genRes.status + ')'); return
@@ -170,7 +170,7 @@ export default function Home() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ plan: currentPlan, crawlData, customRequest })
-      }, 65000)
+      }, 90000)
       if (!genRes.ok) {
         const errData = await genRes.json().catch(() => ({}))
         setError(errData.error || 'HTML 생성 실패'); setStep(4); return

@@ -242,7 +242,7 @@ export async function POST(req) {
 async function callClaude(system, prompt) {
   try {
     const controller = new AbortController()
-    const timeout = setTimeout(() => controller.abort(), 55000) // 55초 (Vercel 60초에 5초 버퍼)
+    const timeout = setTimeout(() => controller.abort(), 250000)
     const res = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       signal: controller.signal,
@@ -253,7 +253,7 @@ async function callClaude(system, prompt) {
       },
       body: JSON.stringify({
         model: 'claude-sonnet-4-20250514',
-        max_tokens: 4096,
+        max_tokens: 8000,
         system,
         messages: [{ role: 'user', content: prompt }]
       })
