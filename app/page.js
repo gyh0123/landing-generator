@@ -124,16 +124,18 @@ export default function Home() {
       addProgress('🎯', '타겟 & 소구점 정의',
         '완료 — 타겟: ' + (planJson.plan.brand?.target?.slice(0, 30) || '') + '...', true)
 
-      // Step 3: Generate HTML
+      // Step 3: Generate HTML (5 AI 병렬)
       setStep(3)
       addProgress('🎨', 'CSS · JS 생성', 'AI 1 — 디자인 시스템 및 인터랙션 작성 중...', false)
-      addProgress('🦸', '상단 HTML 생성', 'AI 2 — 히어로 + 혜택 섹션 작성 중...', false)
-      addProgress('📬', '하단 HTML + 폼 생성', 'AI 3 — 후기·FAQ·신청폼 작성 중...', false)
+      addProgress('🦸', '히어로 + 상단 생성', 'AI 2 — 긴급배너 + 히어로 + 상단 섹션 작성 중...', false)
+      addProgress('🔧', '중단 섹션 생성', 'AI 3 — 차별점·프로세스·비교 섹션 작성 중...', false)
+      addProgress('💬', '후기 · FAQ 생성', 'AI 4 — 후기·FAQ·마지막 설득 섹션 작성 중...', false)
+      addProgress('📬', '폼 + CTA 생성', 'AI 5 — 신청폼 + 고정 CTA 바 작성 중...', false)
       const genRes = await fetchWithTimeout('/api/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ plan: planJson.plan, crawlData: crawlJson.data, customRequest })
-      }, 90000)
+      }, 120000)
       if (!genRes.ok) {
         const errData = await genRes.json().catch(() => ({}))
         handleError(errData.error || 'HTML 생성 실패 (HTTP ' + genRes.status + ')'); return
@@ -144,8 +146,10 @@ export default function Home() {
       }
       setHtml(genJson.html)
       addProgress('🎨', 'CSS · JS 생성', '완료', true)
-      addProgress('🦸', '상단 HTML 생성', '완료', true)
-      addProgress('📬', '하단 HTML + 폼 생성', '완료', true)
+      addProgress('🦸', '히어로 + 상단 생성', '완료', true)
+      addProgress('🔧', '중단 섹션 생성', '완료', true)
+      addProgress('💬', '후기 · FAQ 생성', '완료', true)
+      addProgress('📬', '폼 + CTA 생성', '완료', true)
       stopTimer()
       setStep(4)
     } catch (err) {
@@ -175,8 +179,10 @@ export default function Home() {
       if (!genJson.success) { setError(genJson.error || 'HTML 생성 실패'); setStep(4); return }
       setHtml(genJson.html)
       addProgress('🎨', 'CSS · JS 생성', '완료', true)
-      addProgress('🦸', '상단 HTML 생성', '완료', true)
-      addProgress('📬', '하단 HTML + 폼 생성', '완료', true)
+      addProgress('🦸', '히어로 + 상단 생성', '완료', true)
+      addProgress('🔧', '중단 섹션 생성', '완료', true)
+      addProgress('💬', '후기 · FAQ 생성', '완료', true)
+      addProgress('📬', '폼 + CTA 생성', '완료', true)
       stopTimer()
       setStep(4)
     } catch (err) {
@@ -316,12 +322,12 @@ export default function Home() {
                   <div className={styles.loadingText}>
                     {step === 1 && '사이트 크롤링 중...'}
                     {step === 2 && '설득 구조 기획 중...'}
-                    {step === 3 && 'AI 3개 병렬 HTML 생성 중...'}
+                    {step === 3 && 'AI 5개 병렬 HTML 생성 중...'}
                   </div>
                   <p className={styles.loadingDesc}>
                     {step === 1 && '웹사이트에서 서비스 정보를 수집하고 있습니다'}
                     {step === 2 && '"왜 이 브랜드인가 / 누구를 설득할 것인가" 기획 중'}
-                    {step === 3 && 'CSS + 상단 섹션 + 하단·폼을 동시에 생성 후 합칩니다'}
+                    {step === 3 && 'CSS + 히어로 + 중단 + 후기/FAQ + 폼을 5개 AI로 동시 생성 후 합칩니다'}
                   </p>
                 </div>
               </div>

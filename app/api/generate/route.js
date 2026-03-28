@@ -8,16 +8,17 @@ export async function POST(req) {
   const bg = plan.design?.bg_color || '#ffffff'
   const customNote = customRequest ? '\n추가 요청: ' + customRequest : ''
 
-  // form 타입 섹션 제외하고 상/하 2등분
+  // form 타입 섹션 제외하고 3등분
   const sections = plan.sections || []
   const nonFormSections = sections.filter(s =>
     !['form', 'cta_form', 'apply', 'contact', 'register', '신청', '폼'].some(t =>
       (s.type || '').toLowerCase().includes(t) || (s.id || '').toLowerCase().includes(t)
     )
   )
-  const half = Math.ceil(nonFormSections.length / 2)
-  const secTop = nonFormSections.slice(0, half)
-  const secBot = nonFormSections.slice(half)
+  const third = Math.ceil(nonFormSections.length / 3)
+  const sec1 = nonFormSections.slice(0, third)
+  const sec2 = nonFormSections.slice(third, third * 2)
+  const sec3 = nonFormSections.slice(third * 2)
 
   const PRETENDARD = "@import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable.min.css');"
 
@@ -67,19 +68,23 @@ export async function POST(req) {
     ].filter(Boolean).join('\n')).join('\n\n')
   }
 
-  const commonRules = [
+  const htmlRules = [
     '- img 태그 사용 금지',
     '- font-family 인라인 스타일 금지',
     '- 색상은 var(--primary) var(--accent) var(--secondary) 변수만',
     '- 각 섹션·카드에 class="fade-up"',
     '- 밝은 배경에서 color:#fff 금지 / 어두운 배경에서 color:#1a1a1a 금지',
     '- 카드 텍스트: color:#1a1a1a 또는 #555',
-    '- CTA 버튼 없음 (폼 제출 버튼 제외)',
-    '- form 태그·input·신청서 절대 금지 (AI 3 전담)',
+    '- form 태그·input·신청서 절대 금지 (AI 5 전담)',
+    '- sections[].content 카피 그대로 사용',
+    '- 각 섹션의 콘텐츠를 충분히 길고 상세하게 작성',
+    '- 카드·리스트·통계 등 시각적 요소를 풍부하게 활용',
   ].join('\n')
 
-  // AI 3개 병렬 실행
-  const [cssJs, topHtml, botHtml] = await Promise.all([
+  const htmlSystemPrompt = '퍼포먼스 마케팅 퍼블리셔. HTML 조각만 출력. DOCTYPE html head style script 태그 없이 순수 HTML만. 콘텐츠를 풍부하고 상세하게 작성.'
+
+  // AI 5개 병렬 실행
+  const [cssJs, heroHtml, midHtml, lowerHtml, formHtml] = await Promise.all([
 
     // AI 1: CSS + JS 전체
     callClaude(
@@ -123,56 +128,85 @@ export async function POST(req) {
       customNote
     ),
 
-    // AI 2: 상단 HTML (긴급배너 + 히어로 + 앞쪽 섹션들)
+    // AI 2: 긴급배너 + 히어로 + 상단 섹션들
     callClaude(
-      '퍼포먼스 마케팅 퍼블리셔. HTML 조각만 출력. DOCTYPE html head style script 태그 없이 순수 HTML만.',
-      '랜딩페이지 상단부 HTML을 작성하세요.\n\n' +
+      htmlSystemPrompt,
+      '랜딩페이지 상단부 HTML을 작성하세요. 긴급배너 + 히어로 섹션 + 상단 콘텐츠 섹션을 담당합니다.\n\n' +
       brandCtx + '\n\n' + DS + '\n\n전화번호: ' + phone + customNote + '\n\n' +
-      commonRules + '\n\n' +
-      '담당: 긴급배너 + 히어로 + 아래 섹션들\n\n' +
-      formatSections(secTop, 0) + '\n\n' +
+      '[필수 규칙]\n' + htmlRules + '\n- CTA 버튼 없음 (폼 제출 버튼 제외)\n\n' +
+      '담당 섹션:\n\n' +
+      formatSections(sec1, 0) + '\n\n' +
       '[설득 지침]\n' +
       '- 긴급배너: <div class="urgency-banner">' + (plan.urgency?.message || '한정 혜택 진행 중') + ' <span id="timer"></span></div>\n' +
-      '- 히어로: .section-dark 배경, why_this_brand.hero_message를 헤드라인으로\n' +
+      '- 히어로: .section-dark 배경, why_this_brand.hero_message를 헤드라인으로, 서브헤드 + 핵심 가치 3줄 포함\n' +
+      '- 히어로 섹션을 풍부하고 임팩트 있게 작성 (배지, 헤드라인, 서브헤드, 핵심 가치 포인트 3~4개, 신뢰 요소)\n' +
       '- 각 섹션 시작: objection_resolved 고객 의심을 먼저 공감 문장으로\n' +
       '- 섹션 헤드라인 위 뱃지 + 아래 서브헤드 + 구분선\n' +
-      '- 혜택카드: 최소 4개, 아이콘+제목+설명 2줄\n' +
-      '- 통계: data-target 속성 포함\n' +
-      '- sections[].content 카피 그대로 사용'
+      '- 혜택카드: 최소 4개, 아이콘+제목+설명 2~3줄씩 상세하게\n' +
+      '- 통계: data-target 속성 포함, 최소 3~4개 수치\n' +
+      '- 각 카드와 리스트 항목의 설명을 구체적이고 길게 작성'
     ),
 
-    // AI 3: 하단 HTML + 폼 + 고정UI
+    // AI 3: 중단 섹션들 (차별점, 프로세스, 비교 등)
     callClaude(
-      '퍼포먼스 마케팅 퍼블리셔. HTML 조각만 출력. DOCTYPE html head style script 태그 없이 순수 HTML만.',
-      '랜딩페이지 하단부 HTML + 폼 + 고정 CTA 바를 작성하세요.\n\n' +
+      htmlSystemPrompt,
+      '랜딩페이지 중단부 HTML을 작성하세요. 서비스 차별점·프로세스·비교 등 설득 섹션을 담당합니다.\n\n' +
       brandCtx + '\n\n' + DS + '\n\n전화번호: ' + phone + customNote + '\n\n' +
-      '담당: 아래 섹션들 + 폼(최하단 1번만) + 고정 CTA 바\n\n' +
-      formatSections(secBot, half) + '\n\n' +
+      '[필수 규칙]\n' + htmlRules + '\n- CTA 버튼 없음 (폼 제출 버튼 제외)\n\n' +
+      '담당 섹션:\n\n' +
+      formatSections(sec2, third) + '\n\n' +
+      '[설득 지침]\n' +
+      '- 각 섹션 시작: objection_resolved 고객 의심을 먼저 공감 문장으로\n' +
+      '- 섹션 헤드라인 위 뱃지 + 아래 서브헤드 + 구분선\n' +
+      '- 비교표/프로세스 있으면 시각적으로 풍부하게 (카드, 리스트, 스텝 등)\n' +
+      '- 각 카드에 아이콘 + 제목 + 설명 2~3줄\n' +
+      '- 통계 수치: data-target 속성 포함\n' +
+      '- 내용이 충분히 길고 구체적이어야 함 — 짧은 한 줄 설명 금지\n' +
+      '- 콘텐츠 양이 부족하면 기획안의 설득전략·핵심마찰 해소 내용을 활용해 보충'
+    ),
+
+    // AI 4: 하단 섹션들 (후기, FAQ 등)
+    callClaude(
+      htmlSystemPrompt,
+      '랜딩페이지 하단부 HTML을 작성하세요. 후기·FAQ·마지막 설득 섹션을 담당합니다.\n\n' +
+      brandCtx + '\n\n' + DS + '\n\n전화번호: ' + phone + customNote + '\n\n' +
+      '[필수 규칙]\n' + htmlRules + '\n- CTA 버튼 없음 (폼 제출 버튼 제외)\n\n' +
+      '담당 섹션:\n\n' +
+      formatSections(sec3, third * 2) + '\n\n' +
+      '[설득 지침]\n' +
+      '- 각 섹션 시작: objection_resolved 고객 의심을 먼저 공감 문장으로\n' +
+      '- 섹션 헤드라인 위 뱃지 + 아래 서브헤드 + 구분선\n' +
+      '- 후기카드: ★★★★★ + 이름(익명) + 직업/상황 + 후기 3~4줄 상세하게 + ✓인증뱃지, 최소 4~5개\n' +
+      '- FAQ: 6개 이상, 각 답변 3~4줄 상세하게, .faq-item > .faq-question + .faq-answer\n' +
+      '- 폼 직전: biggest_friction 해소하는 마지막 설득 문단 (4~5줄)\n' +
+      '- 내용이 충분히 길고 구체적이어야 함 — 짧은 한 줄 설명 금지'
+    ),
+
+    // AI 5: 폼 + 고정 CTA 바
+    callClaude(
+      htmlSystemPrompt,
+      '랜딩페이지 신청 폼과 고정 CTA 바를 작성하세요.\n\n' +
+      brandCtx + '\n\n' + DS + '\n\n전화번호: ' + phone + customNote + '\n\n' +
       '[필수 규칙]\n' +
       '- img 태그 사용 금지\n' +
       '- font-family 인라인 스타일 금지\n' +
       '- 색상은 var() 변수만\n' +
       '- 밝은 배경에서 color:#fff 금지 / 어두운 배경에서 color:#1a1a1a 금지\n' +
-      '- 폼은 딱 1번 최하단에만 (중간 폼 절대 금지)\n' +
-      '- 각 섹션·카드에 class="fade-up"\n\n' +
-      '[설득 지침]\n' +
-      '- 후기카드: ★★★★★ + 이름(익명) + 직업/상황 + 후기 3줄 + ✓인증뱃지\n' +
-      '- FAQ: 5개 이상, 각 답변 2~3줄, .faq-item > .faq-question + .faq-answer\n' +
-      '- 폼 직전: biggest_friction 해소하는 마지막 설득 문단 (3~4줄)\n' +
-      '- sections[].content 카피 그대로 사용\n\n' +
+      '- class="fade-up" 적용\n\n' +
       '폼 구조 (id="main-form" onsubmit="handleForm(event)" class="section-gray" style="padding:56px 20px"):\n' +
       '  헤드라인: ' + (plan.form?.title || '무료 상담 신청') + '\n' +
       '  서브: ' + (plan.form?.subtitle || '') + '\n' +
+      '  폼 위에 긴급성/혜택 강조 배너 (예: "지금 신청하면 OO 혜택")\n' +
       '  input[name=name][type=text][required][placeholder="이름"] style="color:#1a1a1a;background:#fff"\n' +
       '  input[name=phone][type=tel][required][placeholder="연락처 (숫자만)"] style="color:#1a1a1a;background:#fff"\n' +
       '  checkbox[required] "개인정보 수집·이용에 동의합니다"\n' +
-      '  button.btn-primary type=submit: "무료상담 신청하기"\n' +
-      '  버튼아래: ' + (plan.form?.micro_copy || '입력하신 정보는 안전하게 보호됩니다') + ' (style="color:#999;font-size:12px;text-align:center;margin-top:8px")\n' +
-      '  폼하단: trust_elements 3개 (color:#555)\n\n' +
+      '  button.btn-primary type=submit: "' + (plan.form?.submit_cta || '무료상담 신청하기') + '"\n' +
+      '  버튼 아래: ' + (plan.form?.micro_copy || '입력하신 정보는 안전하게 보호됩니다') + ' (style="color:#999;font-size:12px;text-align:center;margin-top:8px")\n' +
+      '  폼 하단: trust_elements — ' + (plan.form?.trust_elements?.join(', ') || '신뢰요소') + ' (color:#555, 각각 아이콘+텍스트)\n\n' +
       '고정 CTA 바 (폼 다음에 바로 작성):\n' +
       '<div class="sticky-bar">\n' +
       '  <a href="tel:' + (phone || '#') + '" style="flex:1;border:1.5px solid var(--primary);color:var(--primary);border-radius:12px;height:44px;font-weight:700;display:flex;align-items:center;justify-content:center;text-decoration:none;font-size:14px">📞 전화상담</a>\n' +
-      '  <button onclick="scrollToForm()" style="flex:2;background:var(--accent);color:#fff;border-radius:12px;height:44px;font-weight:800;border:none;font-size:14px;cursor:pointer">무료상담 신청하기</button>\n' +
+      '  <button onclick="scrollToForm()" style="flex:2;background:var(--accent);color:#fff;border-radius:12px;height:44px;font-weight:800;border:none;font-size:14px;cursor:pointer">' + (plan.sticky_cta?.right || '무료상담 신청하기') + '</button>\n' +
       '</div>\n' +
       '<div style="height:80px"></div>'
     )
@@ -190,14 +224,16 @@ export async function POST(req) {
     '</head>\n' +
     '<body>\n' +
     '<div style="max-width:480px;margin:0 auto;overflow-x:hidden">\n' +
-    (topHtml || '') + '\n' +
-    (botHtml || '') + '\n' +
+    (heroHtml || '') + '\n' +
+    (midHtml || '') + '\n' +
+    (lowerHtml || '') + '\n' +
+    (formHtml || '') + '\n' +
     '</div>\n' +
     '</body>\n' +
     '</html>'
 
   // 핵심 파트가 비어있으면 에러 반환
-  if (!topHtml && !botHtml) {
+  if (!heroHtml && !midHtml && !lowerHtml) {
     return Response.json({ success: false, error: 'HTML 생성 실패 — 다시 시도해주세요' }, { status: 500 })
   }
   return Response.json({ success: true, html: finalHtml })
@@ -205,8 +241,11 @@ export async function POST(req) {
 
 async function callClaude(system, prompt) {
   try {
+    const controller = new AbortController()
+    const timeout = setTimeout(() => controller.abort(), 55000)
     const res = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
+      signal: controller.signal,
       headers: {
         'Content-Type': 'application/json',
         'x-api-key': process.env.ANTHROPIC_API_KEY,
@@ -214,11 +253,12 @@ async function callClaude(system, prompt) {
       },
       body: JSON.stringify({
         model: 'claude-sonnet-4-20250514',
-        max_tokens: 5000,
+        max_tokens: 8000,
         system,
         messages: [{ role: 'user', content: prompt }]
       })
     })
+    clearTimeout(timeout)
     if (!res.ok) { console.error('Claude failed:', await res.text()); return '' }
     const data = await res.json()
     let text = data.content?.[0]?.text || ''
