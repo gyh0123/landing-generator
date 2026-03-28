@@ -2,10 +2,9 @@
 import { useState, useRef, useEffect } from 'react'
 import styles from './page.module.css'
 
-const STEPS = ['URL 입력', '크롤링 분석', '기획안 생성', 'HTML 생성', '완료']
+const STEPS = ['URL 입력', '크롤링 · 기획', '기획안 확인', 'HTML 생성', '완료']
 
-
-// 미리보기용 HTML: fade-up visible 강제 처리 (정규식 최소화)
+// 미리보기용 HTML: fade-up visible 강제 처리
 function previewHtml(html) {
   if (!html) return html
   return html
@@ -14,7 +13,8 @@ function previewHtml(html) {
 }
 
 export default function Home() {
-  const [step, setStep] = useState(0) // 0=input, 1=crawling, 2=planning, 3=generating, 4=done
+  // step: 0=input, 1=crawl+plan loading, 2=plan review, 3=generating, 4=done
+  const [step, setStep] = useState(0)
   const [url, setUrl] = useState('')
   const [customPrompt, setCustomPrompt] = useState('')
   const [crawlData, setCrawlData] = useState(null)
@@ -23,7 +23,7 @@ export default function Home() {
   const [error, setError] = useState('')
   const [editingPlan, setEditingPlan] = useState(false)
   const [planText, setPlanText] = useState('')
-  const [previewMode, setPreviewMode] = useState('code') // code | preview
+  const [previewMode, setPreviewMode] = useState('code')
   const [customRequest, setCustomRequest] = useState('')
   const [progress, setProgress] = useState([])
   const [elapsed, setElapsed] = useState(0)
@@ -44,20 +44,22 @@ export default function Home() {
   const reset = () => {
     setStep(0); setUrl(''); setCrawlData(null); setPlan(null)
     setHtml(''); setError(''); setPlanText(''); setCustomPrompt('')
-    setCustomRequest(''); setProgress([]); setElapsed(0); setStartTime(null); if(timerRef.current) clearInterval(timerRef.current)
+    setCustomRequest(''); setProgress([]); setElapsed(0); setStartTime(null)
+    setEditingPlan(false)
+    if(timerRef.current) clearInterval(timerRef.current)
   }
 
   const stopTimer = () => {
     if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null }
   }
 
-  const handleError = (msg) => {
+  const handleError = (msg, fallbackStep = 0) => {
     stopTimer()
     setError(msg || '알 수 없는 오류가 발생했습니다')
-    setStep(0)
+    setStep(fallbackStep)
   }
 
-  const fetchWithTimeout = async (url, options, timeoutMs = 60000) => {
+  const fetchWithTimeout = async (url, options, timeoutMs = 65000) => {
     const controller = new AbortController()
     const timer = setTimeout(() => controller.abort(), timeoutMs)
     try {
@@ -71,25 +73,28 @@ export default function Home() {
     }
   }
 
-  const runAll = async () => {
+  // Phase 1: 크롤링 + 기획안 생성 → 기획안 확인 화면으로
+  const runAnalysis = async () => {
     if (!url) return
     setError('')
-
     setProgress([])
     setElapsed(0)
+    setHtml('')
+    setPlan(null)
+    setEditingPlan(false)
     const st = Date.now()
     setStartTime(st)
     timerRef.current = setInterval(() => setElapsed(Math.floor((Date.now() - st) / 1000)), 500)
 
     try {
-      // Step 1: Crawl
+      // Crawl
       setStep(1)
       addProgress('🔍', '사이트 크롤링', '웹사이트 HTML 파싱 중...', false)
       const crawlRes = await fetchWithTimeout('/api/crawl', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ url })
-      }, 20000)
+      }, 25000)
       if (!crawlRes.ok) {
         const errData = await crawlRes.json().catch(() => ({}))
         handleError(errData.error || '크롤링 실패 (HTTP ' + crawlRes.status + ')'); return
@@ -101,15 +106,14 @@ export default function Home() {
       setCrawlData(crawlJson.data)
       addProgress('🔍', '사이트 크롤링', '완료 — ' + (crawlJson.data.headings?.length || 0) + '개 헤딩, 컬러 ' + (crawlJson.data.colors?.length || 0) + '개 추출', true)
 
-      // Step 2: Plan
-      setStep(2)
+      // Plan
       addProgress('📋', '설득 구조 기획', 'Kotler·Cialdini 프레임으로 설득 흐름 설계 중...', false)
       addProgress('🎯', '타겟 & 소구점 정의', '왜 이 브랜드인가 / 누구를 설득할 것인가 분석 중...', false)
       const planRes = await fetchWithTimeout('/api/plan', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ crawlData: crawlJson.data, customPrompt })
-      }, 300000)
+      }, 65000)
       if (!planRes.ok) {
         const errData = await planRes.json().catch(() => ({}))
         handleError(errData.error || 'AI 기획 실패 (HTTP ' + planRes.status + ')'); return
@@ -124,25 +128,51 @@ export default function Home() {
       addProgress('🎯', '타겟 & 소구점 정의',
         '완료 — 타겟: ' + (planJson.plan.brand?.target?.slice(0, 30) || '') + '...', true)
 
-      // Step 3: Generate HTML (5 AI 병렬)
+      // 기획안 확인 화면으로 전환
+      stopTimer()
+      setStep(2)
+
+    } catch (err) {
+      console.error('runAnalysis error:', err)
+      handleError(err.message || '오류가 발생했습니다. 다시 시도해주세요.')
+    }
+  }
+
+  // Phase 2: HTML 생성 (사용자 확인 후)
+  const generateHtml = async () => {
+    setError('')
+    setProgress([])
+    setElapsed(0)
+    const st = Date.now()
+    setStartTime(st)
+    timerRef.current = setInterval(() => setElapsed(Math.floor((Date.now() - st) / 1000)), 500)
+
+    let currentPlan = plan
+    if (editingPlan) {
+      try { currentPlan = JSON.parse(planText); setPlan(currentPlan) }
+      catch { setError('기획안 JSON 형식 오류 — 수정 후 다시 시도하세요'); return }
+    }
+
+    try {
       setStep(3)
       addProgress('🎨', 'CSS · JS 생성', 'AI 1 — 디자인 시스템 및 인터랙션 작성 중...', false)
       addProgress('🦸', '히어로 + 상단 생성', 'AI 2 — 긴급배너 + 히어로 + 상단 섹션 작성 중...', false)
       addProgress('🔧', '중단 섹션 생성', 'AI 3 — 차별점·프로세스·비교 섹션 작성 중...', false)
       addProgress('💬', '후기 · FAQ 생성', 'AI 4 — 후기·FAQ·마지막 설득 섹션 작성 중...', false)
       addProgress('📬', '폼 + CTA 생성', 'AI 5 — 신청폼 + 고정 CTA 바 작성 중...', false)
+
       const genRes = await fetchWithTimeout('/api/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ plan: planJson.plan, crawlData: crawlJson.data, customRequest })
-      }, 300000)
+        body: JSON.stringify({ plan: currentPlan, crawlData, customRequest })
+      }, 65000)
       if (!genRes.ok) {
         const errData = await genRes.json().catch(() => ({}))
-        handleError(errData.error || 'HTML 생성 실패 (HTTP ' + genRes.status + ')'); return
+        handleError(errData.error || 'HTML 생성 실패 (HTTP ' + genRes.status + ')', 2); return
       }
       const genJson = await genRes.json()
       if (!genJson.success) {
-        handleError(genJson.error || 'HTML 생성 실패'); return
+        handleError(genJson.error || 'HTML 생성 실패', 2); return
       }
       setHtml(genJson.html)
       addProgress('🎨', 'CSS · JS 생성', '완료', true)
@@ -153,30 +183,45 @@ export default function Home() {
       stopTimer()
       setStep(4)
     } catch (err) {
-      console.error('runAll error:', err)
-      handleError(err.message || '오류가 발생했습니다. 다시 시도해주세요.')
+      console.error('generateHtml error:', err)
+      handleError(err.message || 'HTML 생성 실패', 2)
     }
   }
 
+  // HTML 재생성 (완료 화면에서)
   const regenerateHtml = async () => {
-    setStep(3)
     setError('')
+    setProgress([])
+    setElapsed(0)
+    const st = Date.now()
+    setStartTime(st)
+    timerRef.current = setInterval(() => setElapsed(Math.floor((Date.now() - st) / 1000)), 500)
+
     let currentPlan = plan
     if (editingPlan) {
-      try { currentPlan = JSON.parse(planText) } catch { setError('기획안 JSON 오류'); setStep(4); return }
+      try { currentPlan = JSON.parse(planText); setPlan(currentPlan) }
+      catch { setError('기획안 JSON 오류'); return }
     }
+
     try {
+      setStep(3)
+      addProgress('🎨', 'CSS · JS 생성', 'AI 1 — 디자인 시스템 및 인터랙션 작성 중...', false)
+      addProgress('🦸', '히어로 + 상단 생성', 'AI 2 — 긴급배너 + 히어로 + 상단 섹션 작성 중...', false)
+      addProgress('🔧', '중단 섹션 생성', 'AI 3 — 차별점·프로세스·비교 섹션 작성 중...', false)
+      addProgress('💬', '후기 · FAQ 생성', 'AI 4 — 후기·FAQ·마지막 설득 섹션 작성 중...', false)
+      addProgress('📬', '폼 + CTA 생성', 'AI 5 — 신청폼 + 고정 CTA 바 작성 중...', false)
+
       const genRes = await fetchWithTimeout('/api/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ plan: currentPlan, crawlData, customRequest })
-      }, 90000)
+      }, 65000)
       if (!genRes.ok) {
         const errData = await genRes.json().catch(() => ({}))
-        setError(errData.error || 'HTML 생성 실패'); setStep(4); return
+        setError(errData.error || 'HTML 생성 실패'); stopTimer(); setStep(4); return
       }
       const genJson = await genRes.json()
-      if (!genJson.success) { setError(genJson.error || 'HTML 생성 실패'); setStep(4); return }
+      if (!genJson.success) { setError(genJson.error || 'HTML 생성 실패'); stopTimer(); setStep(4); return }
       setHtml(genJson.html)
       addProgress('🎨', 'CSS · JS 생성', '완료', true)
       addProgress('🦸', '히어로 + 상단 생성', '완료', true)
@@ -187,7 +232,7 @@ export default function Home() {
       setStep(4)
     } catch (err) {
       console.error('regenerateHtml error:', err)
-      setError(err.message || 'HTML 재생성 실패'); setStep(4)
+      setError(err.message || 'HTML 재생성 실패'); stopTimer(); setStep(4)
     }
   }
 
@@ -199,7 +244,7 @@ export default function Home() {
     a.click()
   }
 
-  const isLoading = step >= 1 && step <= 3
+  const isLoading = step === 1 || step === 3
 
   return (
     <main className={styles.main}>
@@ -259,7 +304,7 @@ export default function Home() {
               placeholder="https://example.com"
               value={url}
               onChange={e => setUrl(e.target.value)}
-              onKeyDown={e => e.key === 'Enter' && runAll()}
+              onKeyDown={e => e.key === 'Enter' && runAnalysis()}
             />
           </div>
 
@@ -274,37 +319,37 @@ export default function Home() {
             />
           </div>
 
-          <button className={styles.btnPrimary} onClick={runAll} disabled={!url}>
-            <span>🚀</span> 랜딩페이지 자동 생성 시작
+          <button className={styles.btnPrimary} onClick={runAnalysis} disabled={!url}>
+            <span>🚀</span> 크롤링 + 기획안 생성
           </button>
 
           <div className={styles.howItWorks}>
             <div className={styles.step2Item}>
               <div className={styles.step2Num}>1</div>
               <div>
-                <strong>크롤링 분석</strong>
-                <p>URL에서 서비스명, 주요 내용, 가격, 연락처 등을 자동 추출</p>
+                <strong>크롤링 + 기획안 생성</strong>
+                <p>URL 분석 후 AI가 마케팅 기획안 자동 작성</p>
               </div>
             </div>
             <div className={styles.step2Item}>
               <div className={styles.step2Num}>2</div>
               <div>
-                <strong>기획안 생성</strong>
-                <p>타겟, USP, 헤드라인, 디자인 방향 등 마케팅 기획안 작성</p>
+                <strong>기획안 확인 · 수정</strong>
+                <p>생성된 기획안을 확인하고 필요하면 수정</p>
               </div>
             </div>
             <div className={styles.step2Item}>
               <div className={styles.step2Num}>3</div>
               <div>
-                <strong>HTML 코드 작성</strong>
-                <p>완성된 DB 수집용 랜딩페이지 HTML 파일 생성 및 다운로드</p>
+                <strong>HTML 코드 생성</strong>
+                <p>확인 후 AI 5개가 동시에 랜딩페이지 HTML 생성</p>
               </div>
             </div>
           </div>
         </div>
       )}
 
-      {/* Loading */}
+      {/* Loading (step 1: crawl+plan, step 3: generate) */}
       {isLoading && (() => {
         const doneCount = progress.filter(p => p.done).length
         const totalCount = progress.length || 1
@@ -320,14 +365,12 @@ export default function Home() {
                 <div className={styles.spinner} />
                 <div>
                   <div className={styles.loadingText}>
-                    {step === 1 && '사이트 크롤링 중...'}
-                    {step === 2 && '설득 구조 기획 중...'}
+                    {step === 1 && '크롤링 + 기획안 생성 중...'}
                     {step === 3 && 'AI 5개 병렬 HTML 생성 중...'}
                   </div>
                   <p className={styles.loadingDesc}>
-                    {step === 1 && '웹사이트에서 서비스 정보를 수집하고 있습니다'}
-                    {step === 2 && '"왜 이 브랜드인가 / 누구를 설득할 것인가" 기획 중'}
-                    {step === 3 && 'CSS + 히어로 + 중단 + 후기/FAQ + 폼을 5개 AI로 동시 생성 후 합칩니다'}
+                    {step === 1 && '웹사이트 분석 후 설득 구조를 기획합니다'}
+                    {step === 3 && 'CSS + 히어로 + 중단 + 후기/FAQ + 폼을 동시 생성 후 합칩니다'}
                   </p>
                 </div>
               </div>
@@ -358,6 +401,82 @@ export default function Home() {
         </div>
         )
       })()}
+
+      {/* Step 2: Plan Review */}
+      {step === 2 && plan && (
+        <div className={styles.resultWrap}>
+          <div className={styles.card}>
+            <div className={styles.cardHeader}>
+              <h2 className={styles.cardTitle}>📋 기획안 확인</h2>
+              <div className={styles.cardActions}>
+                <button className={styles.btnSecondary} onClick={() => setEditingPlan(!editingPlan)}>
+                  {editingPlan ? '✓ 편집 완료' : '✏️ 편집'}
+                </button>
+              </div>
+            </div>
+
+            {editingPlan ? (
+              <textarea
+                className={styles.codeArea}
+                value={planText}
+                onChange={e => setPlanText(e.target.value)}
+                rows={20}
+              />
+            ) : (
+              <div className={styles.planGrid}>
+                <PlanCard icon="💡" title="왜 이 브랜드인가?" items={[
+                  ['핵심 이유', plan.analysis?.why_this_brand?.core_reason],
+                  ['독자 가치', plan.analysis?.why_this_brand?.unique_value],
+                  ['히어로 메시지', plan.analysis?.why_this_brand?.hero_message],
+                ]} />
+                <PlanCard icon="🎯" title="어떤 타겟을 설득하는가?" items={[
+                  ['프로필', plan.analysis?.target_definition?.profile],
+                  ['상황', plan.analysis?.target_definition?.situation],
+                  ['감정', plan.analysis?.target_definition?.emotion],
+                  ['인식단계', plan.analysis?.target_definition?.awareness_stage],
+                  ['첫 확인사항', plan.analysis?.target_definition?.first_check],
+                ]} />
+                <PlanCard icon="🔍" title="설득 전략" items={[
+                  ['서비스 본질', plan.analysis?.service_essence],
+                  ['설득 전략', plan.analysis?.persuasion_strategy],
+                  ['핵심 마찰', plan.analysis?.conversion_diagnosis?.biggest_friction],
+                ]} />
+                <PlanCard icon="🎨" title="디자인" items={[
+                  ['무드', plan.design?.mood],
+                  ['메인컬러', plan.design?.primary_color],
+                  ['강조컬러', plan.design?.accent_color],
+                  ['섹션수', plan.sections?.length + '개'],
+                ]} extra={
+                  <div style={{display:'flex',gap:8,marginTop:8}}>
+                    <div style={{width:24,height:24,borderRadius:6,background:plan.design?.primary_color}} title={plan.design?.primary_color}/>
+                    <div style={{width:24,height:24,borderRadius:6,background:plan.design?.secondary_color}} title={plan.design?.secondary_color}/>
+                    <div style={{width:24,height:24,borderRadius:6,background:plan.design?.accent_color}} title={plan.design?.accent_color}/>
+                  </div>
+                } />
+              </div>
+            )}
+
+            <div className={styles.inputGroup} style={{marginTop:16}}>
+              <label className={styles.label}>HTML 생성 시 추가 요청사항 <span className={styles.optional}>(선택)</span></label>
+              <input
+                className={styles.input}
+                placeholder="예: 더 긴급하게, 가격 부각, 젊은 톤으로"
+                value={customRequest}
+                onChange={e => setCustomRequest(e.target.value)}
+              />
+            </div>
+
+            <div style={{display:'flex',gap:10,marginTop:20,flexWrap:'wrap'}}>
+              <button className={styles.btnPrimary} onClick={generateHtml} style={{flex:1,justifyContent:'center',padding:'14px 24px',fontSize:15}}>
+                🚀 HTML 생성 시작
+              </button>
+              <button className={styles.btnSecondary} onClick={reset}>
+                ← 처음부터
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Step 4: Done */}
       {step === 4 && plan && (

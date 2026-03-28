@@ -55,63 +55,91 @@ export async function POST(req) {
   if (!url) return Response.json({ error: 'URL이 필요합니다' }, { status: 400 })
 
   try {
-    // 크롤링 실행
     const controller = new AbortController()
-    const timeout = setTimeout(() => controller.abort(), 12000)
+    const timeout = setTimeout(() => controller.abort(), 20000) // 20초
 
-    const crawlPromise = fetch(url, {
+    const crawlRes = await fetch(url, {
       signal: controller.signal,
       headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120.0.0.0 Safari/537.36',
-        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-        'Accept-Language': 'ko-KR,ko;q=0.9,en;q=0.8',
-      }
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
+        'Accept-Language': 'ko-KR,ko;q=0.9,en-US;q=0.8,en;q=0.7',
+        'Accept-Encoding': 'gzip, deflate, br',
+        'Cache-Control': 'no-cache',
+        'Sec-Fetch-Dest': 'document',
+        'Sec-Fetch-Mode': 'navigate',
+        'Sec-Fetch-Site': 'none',
+        'Sec-Fetch-User': '?1',
+        'Upgrade-Insecure-Requests': '1',
+      },
+      redirect: 'follow',
     })
-
-    const crawlRes = await crawlPromise
     clearTimeout(timeout)
     if (!crawlRes.ok) throw new Error(`HTTP ${crawlRes.status}`)
 
     const html = await crawlRes.text()
     const $ = cheerio.load(html)
 
-    // 컬러 추출
+    // 컬러 추출 (HTML 파싱 전에)
     const themeColorMeta = html.match(/<meta[^>]*name=["']theme-color["'][^>]*content=["']([^"']+)["'][^>]*>/i)?.[1] ||
       html.match(/<meta[^>]*content=["']([^"']+)["'][^>]*name=["']theme-color["'][^>]*>/i)?.[1] || ''
     const rawColors = extractKeyColors(html, themeColorMeta)
 
-    // HTML 파싱
-    $('script, noscript, iframe, nav, footer, header').remove()
-    $('[class*="cookie"], [class*="popup"], [class*="modal"], [id*="cookie"]').remove()
-
+    // 메타데이터 먼저 추출
     const title = $('title').text().trim() || $('h1').first().text().trim()
     const description = $('meta[name="description"]').attr('content') || ''
+    const keywords = $('meta[name="keywords"]').attr('content') || ''
     const ogTitle = $('meta[property="og:title"]').attr('content') || ''
     const ogDesc = $('meta[property="og:description"]').attr('content') || ''
     const ogImage = $('meta[property="og:image"]').attr('content') || ''
     const themeColor = themeColorMeta || ''
 
+    // 전화번호·가격은 전체 텍스트에서 추출 (삭제 전)
+    const fullText = $.text()
+    const phones = fullText.match(/(?:0\d{1,2}[-.)]\s?\d{3,4}[-.)]\s?\d{4}|1[05678]\d{2}[-.)]\s?\d{4})/g) || []
+    const prices = fullText.match(/[\d,]+원|₩[\d,]+/g) || []
+
+    // 불필요한 요소만 제거 (header/nav는 유지 — 브랜드 정보 포함)
+    $('script, noscript, iframe, svg, style').remove()
+    $('[class*="cookie"], [class*="popup"], [class*="modal"], [id*="cookie"], [class*="banner-ad"]').remove()
+    $('[style*="display:none"], [style*="display: none"], [hidden]').remove()
+
+    // 헤딩 추출
     const headings = []
-    $('h1, h2, h3').each((_, el) => {
-      const text = $(el).text().trim()
-      if (text && text.length > 1 && text.length < 200) headings.push(text)
+    $('h1, h2, h3, h4').each((_, el) => {
+      const text = $(el).text().trim().replace(/\s+/g, ' ')
+      if (text && text.length > 1 && text.length < 300) headings.push(text)
     })
 
+    // 텍스트 추출 — 더 많은 요소에서, 더 관대한 길이로
     const paragraphs = []
-    $('p, li, span, div').each((_, el) => {
-      const text = $(el).text().trim()
-      if (text && text.length > 20 && text.length < 500) {
-        if (!paragraphs.includes(text)) paragraphs.push(text)
+    const seen = new Set()
+    $('p, li, dd, td, blockquote, figcaption, [class*="desc"], [class*="text"], [class*="info"], [class*="content"], [class*="summary"]').each((_, el) => {
+      const text = $(el).text().trim().replace(/\s+/g, ' ')
+      if (text && text.length >= 10 && text.length < 800 && !seen.has(text)) {
+        seen.add(text)
+        paragraphs.push(text)
       }
     })
 
-    const uniqueHeadings = [...new Set(headings)].slice(0, 15)
-    const uniqueParagraphs = [...new Set(paragraphs)].slice(0, 30)
-    const bodyText = uniqueParagraphs.join('\n').slice(0, 5000)
+    // 추가로 div/span 에서도 텍스트 추출 (직접 텍스트 노드가 있는 경우)
+    if (paragraphs.length < 15) {
+      $('div, span, a, strong, em, b').each((_, el) => {
+        const $el = $(el)
+        // 자식 블록 요소가 없는 리프 노드만
+        if ($el.children('div, p, section, article, ul, ol, table').length === 0) {
+          const text = $el.text().trim().replace(/\s+/g, ' ')
+          if (text && text.length >= 8 && text.length < 500 && !seen.has(text)) {
+            seen.add(text)
+            paragraphs.push(text)
+          }
+        }
+      })
+    }
 
-    const fullText = $.text()
-    const phones = fullText.match(/(?:0\d{1,2}-\d{3,4}-\d{4}|1[05678]\d{2}-\d{4})/g) || []
-    const prices = fullText.match(/[\d,]+원|₩[\d,]+/g) || []
+    const uniqueHeadings = [...new Set(headings)].slice(0, 20)
+    const uniqueParagraphs = paragraphs.slice(0, 50)
+    const bodyText = uniqueParagraphs.join('\n').slice(0, 6000)
 
     return Response.json({
       success: true,
@@ -119,13 +147,14 @@ export async function POST(req) {
         url,
         title,
         description,
+        keywords,
         ogTitle,
         ogDesc,
         ogImage: toAbsoluteUrl(ogImage, url) || '',
         themeColor,
         colors: rawColors,
         headings: uniqueHeadings,
-        paragraphs: uniqueParagraphs.slice(0, 20),
+        paragraphs: uniqueParagraphs.slice(0, 30),
         phones: [...new Set(phones)].slice(0, 5),
         prices: [...new Set(prices)].slice(0, 10),
         bodyText,
