@@ -242,7 +242,7 @@ export async function POST(req) {
 async function callClaude(system, prompt) {
   try {
     const controller = new AbortController()
-    const timeout = setTimeout(() => controller.abort(), 55000)
+    const timeout = setTimeout(() => controller.abort(), 250000)
     const res = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       signal: controller.signal,

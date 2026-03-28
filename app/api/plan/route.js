@@ -102,7 +102,7 @@ ${customPrompt ? '추가요청: ' + customPrompt : ''}
 
   try {
     const controller = new AbortController()
-    const timeout = setTimeout(() => controller.abort(), 50000) // 50초 타임아웃
+    const timeout = setTimeout(() => controller.abort(), 250000) // 250초 타임아웃
 
     const response = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
@@ -144,7 +144,7 @@ ${customPrompt ? '추가요청: ' + customPrompt : ''}
   } catch (err) {
     console.error('Plan API error:', err)
     const msg = err.name === 'AbortError'
-      ? 'AI 분석 시간 초과 (50초) — 다시 시도해주세요'
+      ? 'AI 분석 시간 초과 — 다시 시도해주세요'
       : 'AI 분석 실패: ' + err.message
     return Response.json({ success: false, error: msg }, { status: 500 })
   }

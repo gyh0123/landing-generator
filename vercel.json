@@ -5,10 +5,10 @@
       "maxDuration": 30
     },
     "app/api/plan/route.js": {
-      "maxDuration": 60
+      "maxDuration": 300
     },
     "app/api/generate/route.js": {
-      "maxDuration": 60
+      "maxDuration": 300
     }
   }
 }
