@@ -1,3 +1,21 @@
 {
-  "framework": "nextjs"
+  "framework": "nextjs",
+  "functions": {
+    "app/api/crawl/route.js": {
+      "maxDuration": 30
+    },
+    "app/api/plan/route.js": {
+      "maxDuration": 60
+    },
+    "app/api/generate/route.js": {
+      "maxDuration": 60
+    }
+  }
 }
+```
+
+저장 후 터미널에서:
+```
+git add .
+git commit -m "fix timeout"
+git push
