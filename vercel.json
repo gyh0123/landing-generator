@@ -12,10 +12,3 @@
     }
   }
 }
-```
-
-저장 후 터미널에서:
-```
-git add .
-git commit -m "fix timeout"
-git push

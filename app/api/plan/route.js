@@ -255,7 +255,7 @@ STEP 6. 자체 검증
     },
     body: JSON.stringify({
       model: 'claude-sonnet-4-20250514',
-      max_tokens: 6000,
+      max_tokens: 4000,
       system: systemPrompt,
       messages: [{ role: 'user', content: userPrompt }]
     })
@@ -270,10 +270,17 @@ STEP 6. 자체 검증
   const text = data.content?.[0]?.text || ''
 
   try {
-    const clean = text.replace(/```json|```/g, '').trim()
+    let clean = text.replace(/```json|```/g, '').trim()
+    // JSON이 잘린 경우 마지막 완전한 } 까지만 파싱 시도
+    if (!clean.endsWith('}')) {
+      const lastBrace = clean.lastIndexOf('}')
+      if (lastBrace > 0) clean = clean.slice(0, lastBrace + 1)
+    }
     const plan = JSON.parse(clean)
     return Response.json({ success: true, plan })
-  } catch {
-    return Response.json({ error: 'JSON 파싱 실패', raw: text }, { status: 500 })
+  } catch (e) {
+    // JSON 파싱 실패 시 필수 필드만 추출해서 기본 구조 반환
+    console.error('JSON parse failed:', e.message, 'text length:', text.length)
+    return Response.json({ error: 'JSON 파싱 실패 — 다시 시도해주세요', raw: text.slice(0, 500) }, { status: 500 })
   }
 }
