@@ -52,7 +52,6 @@ export default function Home() {
     // Step 1: Crawl
     setStep(1)
     addProgress('🔍', '사이트 크롤링', '웹사이트 HTML 파싱 중...', false)
-    addProgress('🧠', '소구점 리서치', 'AI가 광고주 강점 분석 중...', false)
     const crawlRes = await fetch('/api/crawl', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -65,9 +64,6 @@ export default function Home() {
     }
     setCrawlData(crawlJson.data)
     addProgress('🔍', '사이트 크롤링', '완료 — ' + (crawlJson.data.headings?.length || 0) + '개 헤딩, 컬러 ' + (crawlJson.data.colors?.length || 0) + '개 추출', true)
-    addProgress('🧠', '소구점 리서치', crawlJson.data.research
-      ? '완료 — ' + (crawlJson.data.research.brand_usp?.core_differentiator?.slice(0, 40) || '소구점 분석 완료') + '...'
-      : '완료', true)
 
     // Step 2: Plan
     setStep(2)
@@ -245,12 +241,12 @@ export default function Home() {
               <div className={styles.spinner} />
               <div>
                 <div className={styles.loadingText}>
-                  {step === 1 && '크롤링 + AI 소구점 리서치 중...'}
+                  {step === 1 && '사이트 크롤링 중...'}
                   {step === 2 && '설득 구조 기획 중...'}
                   {step === 3 && 'AI 6개 병렬 HTML 생성 중...'}
                 </div>
                 <p className={styles.loadingDesc}>
-                  {step === 1 && '사이트 분석과 광고주 소구점 리서치를 동시에 진행합니다'}
+                  {step === 1 && '웹사이트에서 서비스 정보를 수집하고 있습니다'}
                   {step === 2 && '"왜 이 브랜드인가 / 누구를 설득할 것인가" 기획 중'}
                   {step === 3 && '히어로·섹션·폼을 각 AI가 병렬로 작성 후 합칩니다 (약 30~50초)'}
                 </p>

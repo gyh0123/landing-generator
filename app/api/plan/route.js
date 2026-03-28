@@ -40,52 +40,8 @@ export async function POST(req) {
 
 반드시 JSON만 출력하세요. 코드블록·설명 없이 순수 JSON만.`
 
-  const researchBlock = crawlData.research ? `
-[AI 소구점 리서치 결과 — 기획의 핵심 재료]
+  const userPrompt = `다음 크롤링 데이터를 바탕으로 DB 수집용 랜딩페이지 기획안을 작성하세요.
 
-▶ 이 광고주만의 차별점
-${crawlData.research.brand_usp?.core_differentiator || ''}
-
-▶ 가장 강력한 주장/강점
-${crawlData.research.brand_usp?.strongest_claims?.map((c, i) => `${i+1}. ${c}`).join('\n') || ''}
-
-▶ 신뢰 증거 요소 (실제 언급된 것)
-${crawlData.research.brand_usp?.proof_points?.join(' / ') || ''}
-
-▶ 경쟁사 없는 독자 제공물
-${crawlData.research.brand_usp?.unique_offerings?.join(' / ') || ''}
-
-▶ 타겟 고객
-- 누구: ${crawlData.research.target_customer?.who || ''}
-- 지금 겪는 고통: ${crawlData.research.target_customer?.pain_point || ''}
-- 진짜 원하는 변화: ${crawlData.research.target_customer?.desire || ''}
-- 신청 결심 순간: ${crawlData.research.target_customer?.decision_moment || ''}
-
-▶ 전환 후크
-- 헤드라인 방향: ${crawlData.research.conversion_hooks?.headline_angles?.join(' / ') || ''}
-- 긴급성 소구: ${crawlData.research.conversion_hooks?.urgency_angle || ''}
-- 신뢰 구축 요소: ${crawlData.research.conversion_hooks?.trust_builders?.join(' / ') || ''}
-
-▶ 주요 반론과 해소
-${crawlData.research.conversion_hooks?.key_objections?.map(o => `- "${o.objection}" → ${o.counter}`).join('\n') || ''}
-
-▶ 카피 방향
-- 톤앤매너: ${crawlData.research.copy_direction?.tone || ''}
-- 핵심 문장 후보: ${crawlData.research.copy_direction?.killer_phrase || ''}
-- 서브 설득 문장: ${crawlData.research.copy_direction?.supporting_copy?.join(' / ') || ''}
-
-[리서치 활용 지침 — 반드시 준수]
-- 위 소구점 리서치는 이 광고주의 실제 콘텐츠에서 도출된 것입니다
-- brand_usp.strongest_claims → 섹션 헤드라인과 혜택 카드의 핵심 소재로 사용
-- brand_usp.proof_points → 신뢰 섹션과 통계 섹션의 근거로 사용
-- target_customer.pain_point → 히어로 헤드라인에 고객 독백으로 반영
-- conversion_hooks.headline_angles → 헤드라인 작성 시 우선 참고
-- copy_direction.killer_phrase → 메인 헤드라인 후보로 적극 활용
-- key_objections → 해당 반론을 해소하는 전용 섹션 배치
-` : ''
-
-  const userPrompt = `다음 크롤링 데이터와 소구점 리서치를 바탕으로 DB 수집용 랜딩페이지 기획안을 작성하세요.
-${researchBlock}
 [크롤링 데이터]
 URL: ${crawlData.url}
 제목: ${crawlData.title || crawlData.ogTitle}
