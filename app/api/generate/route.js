@@ -242,7 +242,7 @@ export async function POST(req) {
 async function callClaude(system, prompt) {
   try {
     const controller = new AbortController()
-    const timeout = setTimeout(() => controller.abort(), 250000)
+    const timeout = setTimeout(() => controller.abort(), 290000) // 290초 (Vercel 300초에 10초 버퍼)
     const res = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       signal: controller.signal,

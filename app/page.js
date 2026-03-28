@@ -165,7 +165,7 @@ export default function Home() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ plan: currentPlan, crawlData, customRequest })
-      }, 65000)
+      }, 310000)
       if (!genRes.ok) {
         const errData = await genRes.json().catch(() => ({}))
         handleError(errData.error || 'HTML 생성 실패 (HTTP ' + genRes.status + ')', 2); return
@@ -215,7 +215,7 @@ export default function Home() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ plan: currentPlan, crawlData, customRequest })
-      }, 65000)
+      }, 310000)
       if (!genRes.ok) {
         const errData = await genRes.json().catch(() => ({}))
         setError(errData.error || 'HTML 생성 실패'); stopTimer(); setStep(4); return
