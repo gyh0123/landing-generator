@@ -570,9 +570,9 @@ export default function Home() {
             {previewMode === 'code' ? (
               <div className={styles.codeWrap}>
                 <div className={styles.codeBar}>
-                  <span className={styles.codeDot} style={{background:'#ff5f56'}}/>
-                  <span className={styles.codeDot} style={{background:'#ffbd2e'}}/>
-                  <span className={styles.codeDot} style={{background:'#27c93f'}}/>
+                  <span className={styles.codeDot} style={{background:'#c46050'}}/>
+                  <span className={styles.codeDot} style={{background:'#c4a050'}}/>
+                  <span className={styles.codeDot} style={{background:'#7ab07a'}}/>
                   <span style={{marginLeft:'auto',fontSize:12,color:'var(--text3)'}}>
                     {html.length.toLocaleString()} chars
                   </span>
