@@ -1,5 +1,5 @@
 'use client'
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import styles from './page.module.css'
 
 const STEPS = ['URL 입력', '크롤링 분석', '기획안 생성', 'HTML 생성', '완료']
@@ -26,6 +26,9 @@ export default function Home() {
   const [previewMode, setPreviewMode] = useState('code') // code | preview
   const [customRequest, setCustomRequest] = useState('')
   const [progress, setProgress] = useState([])
+  const [elapsed, setElapsed] = useState(0)
+  const [startTime, setStartTime] = useState(null)
+  const timerRef = useRef(null)
   const iframeRef = useRef(null)
 
   const addProgress = (icon, title, desc, done=false) => {
@@ -41,7 +44,31 @@ export default function Home() {
   const reset = () => {
     setStep(0); setUrl(''); setCrawlData(null); setPlan(null)
     setHtml(''); setError(''); setPlanText(''); setCustomPrompt('')
-    setCustomRequest(''); setProgress([])
+    setCustomRequest(''); setProgress([]); setElapsed(0); setStartTime(null); if(timerRef.current) clearInterval(timerRef.current)
+  }
+
+  const stopTimer = () => {
+    if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null }
+  }
+
+  const handleError = (msg) => {
+    stopTimer()
+    setError(msg || '알 수 없는 오류가 발생했습니다')
+    setStep(0)
+  }
+
+  const fetchWithTimeout = async (url, options, timeoutMs = 60000) => {
+    const controller = new AbortController()
+    const timer = setTimeout(() => controller.abort(), timeoutMs)
+    try {
+      const res = await fetch(url, { ...options, signal: controller.signal })
+      clearTimeout(timer)
+      return res
+    } catch (err) {
+      clearTimeout(timer)
+      if (err.name === 'AbortError') throw new Error('요청 시간 초과 — 다시 시도해주세요')
+      throw err
+    }
   }
 
   const runAll = async () => {
@@ -49,64 +76,82 @@ export default function Home() {
     setError('')
 
     setProgress([])
-    // Step 1: Crawl
-    setStep(1)
-    addProgress('🔍', '사이트 크롤링', '웹사이트 HTML 파싱 중...', false)
-    const crawlRes = await fetch('/api/crawl', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ url })
-    })
-    const crawlJson = await crawlRes.json()
-    if (!crawlJson.success) {
-      setError(crawlJson.error + (crawlJson.detail ? '\n' + crawlJson.detail : ''))
-      setStep(0); return
-    }
-    setCrawlData(crawlJson.data)
-    addProgress('🔍', '사이트 크롤링', '완료 — ' + (crawlJson.data.headings?.length || 0) + '개 헤딩, 컬러 ' + (crawlJson.data.colors?.length || 0) + '개 추출', true)
+    setElapsed(0)
+    const st = Date.now()
+    setStartTime(st)
+    timerRef.current = setInterval(() => setElapsed(Math.floor((Date.now() - st) / 1000)), 500)
 
-    // Step 2: Plan
-    setStep(2)
-    addProgress('📋', '설득 구조 기획', 'Kotler·Cialdini 프레임으로 설득 흐름 설계 중...', false)
-    addProgress('🎯', '타겟 & 소구점 정의', '왜 이 브랜드인가 / 누구를 설득할 것인가 분석 중...', false)
-    const planRes = await fetch('/api/plan', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ crawlData: crawlJson.data, customPrompt })
-    })
-    const planJson = await planRes.json()
-    if (!planJson.success) {
-      setError(planJson.error); setStep(0); return
-    }
-    setPlan(planJson.plan)
-    setPlanText(JSON.stringify(planJson.plan, null, 2))
-    addProgress('📋', '설득 구조 기획', '완료 — ' + (planJson.plan.sections?.length || 0) + '개 섹션 설계', true)
-    addProgress('🎯', '타겟 & 소구점 정의',
-      '완료 — 타겟: ' + (planJson.plan.brand?.target?.slice(0, 30) || '') + '...', true)
+    try {
+      // Step 1: Crawl
+      setStep(1)
+      addProgress('🔍', '사이트 크롤링', '웹사이트 HTML 파싱 중...', false)
+      const crawlRes = await fetchWithTimeout('/api/crawl', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url })
+      }, 20000)
+      if (!crawlRes.ok) {
+        const errData = await crawlRes.json().catch(() => ({}))
+        handleError(errData.error || '크롤링 실패 (HTTP ' + crawlRes.status + ')'); return
+      }
+      const crawlJson = await crawlRes.json()
+      if (!crawlJson.success) {
+        handleError(crawlJson.error + (crawlJson.detail ? '\n' + crawlJson.detail : '')); return
+      }
+      setCrawlData(crawlJson.data)
+      addProgress('🔍', '사이트 크롤링', '완료 — ' + (crawlJson.data.headings?.length || 0) + '개 헤딩, 컬러 ' + (crawlJson.data.colors?.length || 0) + '개 추출', true)
 
-    // Step 3: Generate HTML
-    setStep(3)
-    addProgress('🎨', 'CSS · 디자인 시스템 생성', 'AI 1 — Pretendard 기반 컴포넌트 스타일 작성 중...', false)
-    addProgress('🦸', '히어로 섹션 생성', 'AI 2 — 첫인상 설득 섹션 작성 중...', false)
-    addProgress('📝', '상단 섹션 생성', 'AI 3 — 공감·혜택 섹션 작성 중...', false)
-    addProgress('🔐', '신뢰 섹션 생성', 'AI 4 — 증거·후기 섹션 작성 중...', false)
-    addProgress('📬', '폼 · 마무리 섹션 생성', 'AI 5 — FAQ·폼 섹션 작성 중...', false)
-    const genRes = await fetch('/api/generate', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ plan: planJson.plan, crawlData: crawlJson.data, customRequest })
-    })
-    const genJson = await genRes.json()
-    if (!genJson.success) {
-      setError(genJson.error); setStep(3); return
+      // Step 2: Plan
+      setStep(2)
+      addProgress('📋', '설득 구조 기획', 'Kotler·Cialdini 프레임으로 설득 흐름 설계 중...', false)
+      addProgress('🎯', '타겟 & 소구점 정의', '왜 이 브랜드인가 / 누구를 설득할 것인가 분석 중...', false)
+      const planRes = await fetchWithTimeout('/api/plan', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ crawlData: crawlJson.data, customPrompt })
+      }, 65000)
+      if (!planRes.ok) {
+        const errData = await planRes.json().catch(() => ({}))
+        handleError(errData.error || 'AI 기획 실패 (HTTP ' + planRes.status + ')'); return
+      }
+      const planJson = await planRes.json()
+      if (!planJson.success) {
+        handleError(planJson.error || 'AI 기획안 생성 실패'); return
+      }
+      setPlan(planJson.plan)
+      setPlanText(JSON.stringify(planJson.plan, null, 2))
+      addProgress('📋', '설득 구조 기획', '완료 — ' + (planJson.plan.sections?.length || 0) + '개 섹션 설계', true)
+      addProgress('🎯', '타겟 & 소구점 정의',
+        '완료 — 타겟: ' + (planJson.plan.brand?.target?.slice(0, 30) || '') + '...', true)
+
+      // Step 3: Generate HTML
+      setStep(3)
+      addProgress('🎨', 'CSS · JS 생성', 'AI 1 — 디자인 시스템 및 인터랙션 작성 중...', false)
+      addProgress('🦸', '상단 HTML 생성', 'AI 2 — 히어로 + 혜택 섹션 작성 중...', false)
+      addProgress('📬', '하단 HTML + 폼 생성', 'AI 3 — 후기·FAQ·신청폼 작성 중...', false)
+      const genRes = await fetchWithTimeout('/api/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ plan: planJson.plan, crawlData: crawlJson.data, customRequest })
+      }, 90000)
+      if (!genRes.ok) {
+        const errData = await genRes.json().catch(() => ({}))
+        handleError(errData.error || 'HTML 생성 실패 (HTTP ' + genRes.status + ')'); return
+      }
+      const genJson = await genRes.json()
+      if (!genJson.success) {
+        handleError(genJson.error || 'HTML 생성 실패'); return
+      }
+      setHtml(genJson.html)
+      addProgress('🎨', 'CSS · JS 생성', '완료', true)
+      addProgress('🦸', '상단 HTML 생성', '완료', true)
+      addProgress('📬', '하단 HTML + 폼 생성', '완료', true)
+      stopTimer()
+      setStep(4)
+    } catch (err) {
+      console.error('runAll error:', err)
+      handleError(err.message || '오류가 발생했습니다. 다시 시도해주세요.')
     }
-    setHtml(genJson.html)
-    addProgress('🎨', 'CSS · 디자인 시스템 생성', '완료', true)
-    addProgress('🦸', '히어로 섹션 생성', '완료', true)
-    addProgress('📝', '상단 섹션 생성', '완료', true)
-    addProgress('🔐', '신뢰 섹션 생성', '완료', true)
-    addProgress('📬', '폼 · 마무리 섹션 생성', '완료', true)
-    setStep(4)
   }
 
   const regenerateHtml = async () => {
@@ -116,20 +161,28 @@ export default function Home() {
     if (editingPlan) {
       try { currentPlan = JSON.parse(planText) } catch { setError('기획안 JSON 오류'); setStep(4); return }
     }
-    const genRes = await fetch('/api/generate', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ plan: currentPlan, crawlData, customRequest })
-    })
-    const genJson = await genRes.json()
-    if (!genJson.success) { setError(genJson.error); setStep(4); return }
-    setHtml(genJson.html)
-    addProgress('🎨', 'CSS · 디자인 시스템 생성', '완료', true)
-    addProgress('🦸', '히어로 섹션 생성', '완료', true)
-    addProgress('📝', '상단 섹션 생성', '완료', true)
-    addProgress('🔐', '신뢰 섹션 생성', '완료', true)
-    addProgress('📬', '폼 · 마무리 섹션 생성', '완료', true)
-    setStep(4)
+    try {
+      const genRes = await fetchWithTimeout('/api/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ plan: currentPlan, crawlData, customRequest })
+      }, 90000)
+      if (!genRes.ok) {
+        const errData = await genRes.json().catch(() => ({}))
+        setError(errData.error || 'HTML 생성 실패'); setStep(4); return
+      }
+      const genJson = await genRes.json()
+      if (!genJson.success) { setError(genJson.error || 'HTML 생성 실패'); setStep(4); return }
+      setHtml(genJson.html)
+      addProgress('🎨', 'CSS · JS 생성', '완료', true)
+      addProgress('🦸', '상단 HTML 생성', '완료', true)
+      addProgress('📬', '하단 HTML + 폼 생성', '완료', true)
+      stopTimer()
+      setStep(4)
+    } catch (err) {
+      console.error('regenerateHtml error:', err)
+      setError(err.message || 'HTML 재생성 실패'); setStep(4)
+    }
   }
 
   const downloadHtml = () => {
@@ -155,16 +208,28 @@ export default function Home() {
 
       {/* Step Indicator */}
       <div className={styles.stepBar}>
-        {STEPS.map((s, i) => (
-          <div key={i} className={`${styles.stepItem} ${i <= step ? styles.stepActive : ''} ${i < step ? styles.stepDone : ''}`}>
-            <div className={styles.stepDot}>
-              {i < step ? '✓' : i + 1}
+        {STEPS.map((s, i) => {
+          const doneCount = progress.filter(p => p.done).length
+          const totalCount = progress.length || 1
+          const pct = Math.round((doneCount / Math.max(totalCount, 1)) * 100)
+          const isCurrentStep = i === step && isLoading
+          return (
+            <div key={i} className={`${styles.stepItem} ${i <= step ? styles.stepActive : ''} ${i < step ? styles.stepDone : ''}`}>
+              <div className={styles.stepDot}>
+                {i < step ? '✓' : isCurrentStep ? pct + '%' : i + 1}
+              </div>
+              <span className={styles.stepLabel}>{s}</span>
+              {i < STEPS.length - 1 && <div className={`${styles.stepLine} ${i < step ? styles.stepLineDone : ''}`} />}
             </div>
-            <span className={styles.stepLabel}>{s}</span>
-            {i < STEPS.length - 1 && <div className={`${styles.stepLine} ${i < step ? styles.stepLineDone : ''}`} />}
-          </div>
-        ))}
+          )
+        })}
       </div>
+      {isLoading && (() => {
+        const mins = Math.floor(elapsed / 60)
+        const secs = elapsed % 60
+        const timeStr = mins > 0 ? mins + '분 ' + secs + '초' : secs + '초'
+        return <div className={styles.elapsedBadge}>⏱ {timeStr}</div>
+      })()}
 
       {/* Error */}
       {error && (
@@ -234,23 +299,39 @@ export default function Home() {
       )}
 
       {/* Loading */}
-      {isLoading && (
+      {isLoading && (() => {
+        const doneCount = progress.filter(p => p.done).length
+        const totalCount = progress.length || 1
+        const pct = Math.round((doneCount / Math.max(totalCount, 1)) * 100)
+        const mins = Math.floor(elapsed / 60)
+        const secs = elapsed % 60
+        const timeStr = mins > 0 ? mins + '분 ' + secs + '초' : secs + '초'
+        return (
         <div className={styles.card}>
           <div className={styles.loadingWrap}>
-            <div className={styles.loadingHeader}>
-              <div className={styles.spinner} />
-              <div>
-                <div className={styles.loadingText}>
-                  {step === 1 && '사이트 크롤링 중...'}
-                  {step === 2 && '설득 구조 기획 중...'}
-                  {step === 3 && 'AI 6개 병렬 HTML 생성 중...'}
+            <div className={styles.progressTopBar}>
+              <div className={styles.progressTopLeft}>
+                <div className={styles.spinner} />
+                <div>
+                  <div className={styles.loadingText}>
+                    {step === 1 && '사이트 크롤링 중...'}
+                    {step === 2 && '설득 구조 기획 중...'}
+                    {step === 3 && 'AI 3개 병렬 HTML 생성 중...'}
+                  </div>
+                  <p className={styles.loadingDesc}>
+                    {step === 1 && '웹사이트에서 서비스 정보를 수집하고 있습니다'}
+                    {step === 2 && '"왜 이 브랜드인가 / 누구를 설득할 것인가" 기획 중'}
+                    {step === 3 && 'CSS + 상단 섹션 + 하단·폼을 동시에 생성 후 합칩니다'}
+                  </p>
                 </div>
-                <p className={styles.loadingDesc}>
-                  {step === 1 && '웹사이트에서 서비스 정보를 수집하고 있습니다'}
-                  {step === 2 && '"왜 이 브랜드인가 / 누구를 설득할 것인가" 기획 중'}
-                  {step === 3 && '히어로·섹션·폼을 각 AI가 병렬로 작성 후 합칩니다 (약 30~50초)'}
-                </p>
               </div>
+              <div className={styles.progressTopRight}>
+                <div className={styles.pctNum}>{pct}%</div>
+                <div className={styles.elapsedTime}>⏱ {timeStr}</div>
+              </div>
+            </div>
+            <div className={styles.progressBarWrap}>
+              <div className={styles.progressBarFill} style={{width: pct + '%'}} />
             </div>
             {progress.length > 0 && (
               <div className={styles.progressList}>
@@ -269,7 +350,8 @@ export default function Home() {
             )}
           </div>
         </div>
-      )}
+        )
+      })()}
 
       {/* Step 4: Done */}
       {step === 4 && plan && (

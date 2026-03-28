@@ -55,9 +55,9 @@ export async function POST(req) {
   if (!url) return Response.json({ error: 'URL이 필요합니다' }, { status: 400 })
 
   try {
-    // AI 1: 크롤링 + AI 2: 리서치 — 동시 실행
+    // 크롤링 실행
     const controller = new AbortController()
-    const timeout = setTimeout(() => controller.abort(), 8000)
+    const timeout = setTimeout(() => controller.abort(), 12000)
 
     const crawlPromise = fetch(url, {
       signal: controller.signal,

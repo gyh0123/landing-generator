@@ -78,7 +78,7 @@ export async function POST(req) {
     '- form 태그·input·신청서 절대 금지 (AI 3 전담)',
   ].join('\n')
 
-  // 3개 병렬 실행
+  // AI 3개 병렬 실행
   const [cssJs, topHtml, botHtml] = await Promise.all([
 
     // AI 1: CSS + JS 전체
@@ -196,6 +196,10 @@ export async function POST(req) {
     '</body>\n' +
     '</html>'
 
+  // 핵심 파트가 비어있으면 에러 반환
+  if (!topHtml && !botHtml) {
+    return Response.json({ success: false, error: 'HTML 생성 실패 — 다시 시도해주세요' }, { status: 500 })
+  }
   return Response.json({ success: true, html: finalHtml })
 }
 
@@ -210,7 +214,7 @@ async function callClaude(system, prompt) {
       },
       body: JSON.stringify({
         model: 'claude-sonnet-4-20250514',
-        max_tokens: 8000,
+        max_tokens: 5000,
         system,
         messages: [{ role: 'user', content: prompt }]
       })
