@@ -1,0 +1,544 @@
+.main {
+  max-width: 860px;
+  margin: 0 auto;
+  padding: 40px 20px 80px;
+  min-height: 100vh;
+}
+
+/* Header */
+.header {
+  text-align: center;
+  margin-bottom: 40px;
+}
+.logo {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 26px;
+  font-weight: 700;
+  letter-spacing: -0.5px;
+  color: #f0f0f5;
+  margin-bottom: 8px;
+}
+.logoIcon {
+  font-size: 28px;
+}
+.logoSub {
+  color: var(--text3);
+  font-size: 14px;
+}
+
+/* Step Bar */
+.stepBar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 32px;
+  gap: 0;
+  overflow-x: auto;
+  padding: 0 8px;
+}
+.stepItem {
+  display: flex;
+  align-items: center;
+  position: relative;
+  flex-shrink: 0;
+}
+.stepDot {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 1.5px solid var(--border2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text3);
+  background: var(--bg2);
+  transition: all 0.3s;
+  flex-shrink: 0;
+}
+.stepActive .stepDot {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: var(--accent-glow);
+}
+.stepDone .stepDot {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: white;
+}
+.stepLabel {
+  font-size: 11px;
+  color: var(--text3);
+  margin-left: 6px;
+  white-space: nowrap;
+}
+.stepActive .stepLabel {
+  color: var(--text2);
+}
+.stepDone .stepLabel {
+  color: var(--accent2);
+}
+.stepLine {
+  width: 32px;
+  height: 1px;
+  background: var(--border);
+  margin: 0 4px;
+}
+.stepLineDone {
+  background: var(--accent);
+}
+
+/* Cards */
+.card {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 28px;
+  margin-bottom: 20px;
+}
+.cardHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+.cardTitle {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--text);
+  letter-spacing: -0.3px;
+}
+.cardDesc {
+  color: var(--text2);
+  font-size: 14px;
+  margin-bottom: 24px;
+  line-height: 1.7;
+}
+.cardActions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+/* Error */
+.errorBox {
+  background: rgba(239,68,68,0.1);
+  border: 1px solid rgba(239,68,68,0.25);
+  border-radius: var(--radius-sm);
+  padding: 14px 16px;
+  margin-bottom: 16px;
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  color: #fca5a5;
+  font-size: 13px;
+}
+.errorBox pre {
+  white-space: pre-wrap;
+  font-family: inherit;
+}
+
+/* Form */
+.inputGroup {
+  margin-bottom: 20px;
+}
+.label {
+  display: block;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text2);
+  margin-bottom: 8px;
+}
+.optional {
+  color: var(--text3);
+  font-weight: 400;
+}
+.input {
+  width: 100%;
+  background: var(--bg3);
+  border: 1px solid var(--border2);
+  border-radius: var(--radius-sm);
+  padding: 12px 14px;
+  color: var(--text);
+  font-size: 14px;
+  font-family: inherit;
+  outline: none;
+  transition: border-color 0.2s;
+}
+.input:focus {
+  border-color: var(--accent);
+}
+.input::placeholder {
+  color: var(--text3);
+}
+.textarea {
+  width: 100%;
+  background: var(--bg3);
+  border: 1px solid var(--border2);
+  border-radius: var(--radius-sm);
+  padding: 12px 14px;
+  color: var(--text);
+  font-size: 14px;
+  font-family: inherit;
+  outline: none;
+  resize: vertical;
+  transition: border-color 0.2s;
+  line-height: 1.6;
+}
+.textarea:focus {
+  border-color: var(--accent);
+}
+.textarea::placeholder {
+  color: var(--text3);
+}
+
+/* Buttons */
+.btnPrimary {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--accent);
+  color: white;
+  border: none;
+  border-radius: var(--radius-sm);
+  padding: 12px 22px;
+  font-size: 14px;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  transition: opacity 0.2s, transform 0.1s;
+  white-space: nowrap;
+}
+.btnPrimary:hover { opacity: 0.88; }
+.btnPrimary:active { transform: scale(0.98); }
+.btnPrimary:disabled { opacity: 0.4; cursor: not-allowed; }
+.btnSecondary {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: transparent;
+  color: var(--text2);
+  border: 1px solid var(--border2);
+  border-radius: var(--radius-sm);
+  padding: 10px 18px;
+  font-size: 13px;
+  font-weight: 500;
+  font-family: inherit;
+  cursor: pointer;
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+.btnSecondary:hover {
+  background: var(--bg3);
+  color: var(--text);
+  border-color: var(--border2);
+}
+
+/* How it works */
+.howItWorks {
+  margin-top: 32px;
+  padding-top: 24px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.step2Item {
+  display: flex;
+  gap: 14px;
+  align-items: flex-start;
+}
+.step2Num {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: var(--accent-glow);
+  border: 1px solid var(--accent);
+  color: var(--accent2);
+  font-size: 12px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.step2Item strong {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+  display: block;
+  margin-bottom: 2px;
+}
+.step2Item p {
+  font-size: 12px;
+  color: var(--text3);
+  line-height: 1.5;
+}
+
+/* Loading */
+.loadingWrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 24px 0;
+  gap: 16px;
+}
+.spinner {
+  width: 40px;
+  height: 40px;
+  border: 3px solid var(--border);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+.loadingText {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text);
+}
+.loadingDesc {
+  font-size: 13px;
+  color: var(--text3);
+}
+.crawlSummary {
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 14px 18px;
+  width: 100%;
+  max-width: 400px;
+}
+.crawlItem {
+  display: flex;
+  gap: 12px;
+  font-size: 13px;
+  padding: 4px 0;
+}
+.crawlKey {
+  color: var(--text3);
+  min-width: 70px;
+}
+
+/* Result */
+.resultWrap { }
+.planGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 12px;
+  margin-bottom: 20px;
+}
+.codeArea {
+  width: 100%;
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 14px;
+  color: var(--text);
+  font-size: 12px;
+  font-family: 'Fira Code', 'Consolas', monospace;
+  line-height: 1.6;
+  resize: vertical;
+  outline: none;
+}
+.regenSection {
+  display: flex;
+  gap: 10px;
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+  flex-wrap: wrap;
+}
+.regenSection .input {
+  flex: 1;
+  min-width: 200px;
+}
+
+/* Toggle */
+.toggleGroup {
+  display: flex;
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+}
+.toggleBtn {
+  padding: 8px 14px;
+  font-size: 12px;
+  font-weight: 500;
+  font-family: inherit;
+  background: transparent;
+  color: var(--text3);
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.toggleActive {
+  background: var(--accent);
+  color: white;
+}
+
+/* Code block */
+.codeWrap {
+  background: #0d0d14;
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  border: 1px solid var(--border);
+}
+.codeBar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--border);
+  background: rgba(255,255,255,0.03);
+}
+.codeDot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  display: inline-block;
+}
+.codeContent {
+  overflow-x: auto;
+  padding: 16px;
+  font-size: 11px;
+  line-height: 1.6;
+  color: #c9d1d9;
+  font-family: 'Fira Code', 'Consolas', monospace;
+  white-space: pre;
+  max-height: 500px;
+  overflow-y: auto;
+}
+
+/* Preview */
+.previewWrap {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+}
+.previewBar {
+  background: var(--bg3);
+  padding: 10px 14px;
+  font-size: 12px;
+  color: var(--text3);
+  border-bottom: 1px solid var(--border);
+}
+.phoneMock {
+  display: flex;
+  justify-content: center;
+  padding: 20px;
+  background: var(--bg3);
+}
+.previewFrame {
+  width: 375px;
+  height: 700px;
+  border: none;
+  border-radius: 8px;
+  box-shadow: 0 0 0 8px rgba(255,255,255,0.05), 0 20px 60px rgba(0,0,0,0.5);
+}
+
+/* Bottom actions */
+.bottomActions {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 0;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+/* Responsive */
+@media (max-width: 600px) {
+  .main { padding: 24px 16px 60px; }
+  .stepLabel { display: none; }
+  .stepLine { width: 20px; }
+  .card { padding: 20px; }
+  .planGrid { grid-template-columns: 1fr; }
+  .previewFrame { width: 320px; height: 600px; }
+  .regenSection { flex-direction: column; }
+  .regenSection .input { min-width: 0; }
+  .cardHeader { flex-direction: column; align-items: flex-start; }
+}
+
+/* Progress tracker */
+.loadingHeader {
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+  margin-bottom: 20px;
+  width: 100%;
+}
+.progressList {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+}
+.progressItem {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 10px 14px;
+  transition: all 0.3s;
+}
+.progressDone {
+  border-color: rgba(99,102,241,0.35);
+  background: rgba(99,102,241,0.06);
+}
+.progressIcon {
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--accent2);
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+.progressDone .progressIcon {
+  color: var(--green);
+}
+.progressSpinner {
+  width: 14px;
+  height: 14px;
+  border: 2px solid var(--border2);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  display: inline-block;
+  animation: spin 0.7s linear infinite;
+}
+.progressContent {
+  flex: 1;
+  min-width: 0;
+}
+.progressTitle {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: 2px;
+}
+.progressDesc {
+  font-size: 11px;
+  color: var(--text3);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.progressDone .progressTitle {
+  color: var(--accent2);
+}
+.progressDone .progressDesc {
+  color: var(--text2);
+}
